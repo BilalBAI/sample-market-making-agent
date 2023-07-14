@@ -4,8 +4,8 @@ Given order book and trade data, the sample market maker is able to update fair 
 
 ## Update fair price (Users can choose from 4 methods):
 1. MidPrice: Update fair value based on the market mid price
-2. VWAP: Calculate fair value based on trade data using VWAP
-3. KalmanFilter: Use a Kalman filter for fair value prediction
+2. KalmanFilter: The observed mid-prices are dynamic and noisy. So we can apply a Kalman filter for better fair value estimation.
+3. VWAP: Calculate fair value based on trade data using VWAP
 4. RefOverride: Override fair price using reference price. Reference prices may come from other exchanges with better liquidity
 
 ## Generate quotes
