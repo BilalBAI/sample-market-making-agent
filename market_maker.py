@@ -15,11 +15,11 @@ class MarketMaker:
         self.ref_price = None
         self.target_position = 0
 
-    def update_orderbook_trade(self, order_books, trade_data):
+    def update_data(self, order_books, trade_data):
         self.order_books = order_books
         self.trade_data = trade_data
 
-    def update_fair_value(self, method):
+    def calculate_fair_price(self, method):
         if method == 'MidPrice':
             # Update fair value based on the market mid price
             return self.order_books.mid_price.values[-1]
@@ -47,8 +47,41 @@ class MarketMaker:
             raise ValueError(
                 "Invalid fair value prediction method. Choose 'MidPrice', 'VWAP', 'KalmanFilter' or 'RefOverride'.")
 
-    def generate_quotes(self, position, fair_price, gamma, vol, order_book_density, T, t):
+    def generate_quotes_symmetric(self, spreads: list = None):
         '''        
+            A simple symmetric quoting algo. The spreads can be provided manually or from another algo.
+            If not provided, the spreads will be decide automatically according to price vol.
+            More volatile prices will lead to wider spreads
+
+        '''
+
+        if spreads is None:
+            # Calculate price vol to decide spread if spread is not given
+            vol = self.trade_data.price.rolling(50).std().values[-1]
+            # vol = self.order_books.mid_price.rolling(50).std()
+            #  + position_factor * position
+            # Adjust quotes based on position and spread
+            return {
+                'asks': {
+                    'Q1': self.fair_price + 0.5 * vol,  # p=0.6
+                    'Q2': self.fair_price + 0.7 * vol,  # p=0.5
+                    'Q3': self.fair_price + 1 * vol,  # p=0.3
+
+                },
+                'bids': {
+                    'Q1': self.fair_price - 0.5 * vol,  # p=0.6
+                    'Q2': self.fair_price - 0.7 * vol,  # p=0.5
+                    'Q3': self.fair_price - 1 * vol,  # p=0.3
+                }
+            }
+        else:
+            # given spreads in percentage e.g. [0.05, 0.1, 0.2]
+            return {'asks': {f'Q{i}': self.fair_price * (1 + spreads[i]) for i in len(spreads)},
+                    'bids': {f'Q{i}': self.fair_price * (1 - spreads[i]) for i in len(spreads)}}
+
+    def generate_quotes_avellaneda_stoikov(self, position, fair_price, gamma, vol, order_book_density, T, t):
+        '''        
+            Generate optimal quotes based on Avellaneda & Stoikov's strategy 
             position: existing position
             fair_price: fair price calcualted from self.update_fair_value()
             gamma: inventory risk aversion parameter
@@ -60,8 +93,6 @@ class MarketMaker:
                 smaller if assuming the order book has low liquidity, thus use a more extensive spread.
 
         '''
-        # vol = self.trade_data.price.rolling(50).std()
-        # position_factor = 0.1 * position
         reservation_price = fair_price - \
             (position - self.target_position) * gamma * (T - t)/T * (vol ** 2)
         spread = gamma * (vol ** 2) * (T - t) + (2/gamma) * \
@@ -69,53 +100,31 @@ class MarketMaker:
         bid = reservation_price - spread/2
         ask = reservation_price + spread/2
 
-        return {'bid': bid, 'ask': ask}
-        # if spreads is None:
-        #     # Calculate price vol to decide spread if spread is not given
-        #     vol = self.order_books.mid_price.rolling(50).std()
-        #     # Adjust quotes based on position and spread
-        #     return {
-        #         'asks': {
-        #             'Q1': self.fair_price + 0.5 * vol + position_factor * position,  # p=0.6
-        #             'Q2': self.fair_price + 0.7 * vol + position_factor * position,  # p=0.5
-        #             'Q3': self.fair_price + 1 * vol + position_factor * position,  # p=0.3
-
-        #         },
-        #         'bids': {
-        #             'Q1': self.fair_price - 0.5 * vol - position_factor * position,  # p=0.6
-        #             'Q2': self.fair_price - 0.7 * vol - position_factor * position,  # p=0.5
-        #             'Q3': self.fair_price - 1 * vol - position_factor * position,  # p=0.3
-        #         }
-        #     }
-        # else:
-        #     # given spreads in percentage e.g. [0.05, 0.1, 0.2]
-        #     return {'asks': {f'Q{i}': self.fair_price * (1 + spreads[i]) + position_factor * position for i in len(spreads)},
-        #             'bids': {f'Q{i}': self.fair_price * (1 - spreads[i]) - position_factor * position for i in len(spreads)}}
+        return {'as_bid': bid, 'as_ask': ask}
 
 
-# Example usage
-
+### Example usage
 # Data Extraction and Cleaning
-    # Load trade data over the same period
-df_trades = pd.read_csv('./trades.csv')
-df_trades = df_trades[['timestamp', 'id', 'price', 'side', 'amount']]
-df_trades['price'] = df_trades.price*PRICE_ADJ_MULT
-# Load order book data over a period of time
-df_order = pd.read_csv('./binance_iotabtc_orderbooks/2020-07-17.csv')
-df_order['best_ask'] = df_order['asks'].apply(best_ask)*PRICE_ADJ_MULT
-df_order['best_bid'] = df_order['bids'].apply(best_bid)*PRICE_ADJ_MULT
-df_order['mid_price'] = (df_order['best_ask']-df_order['best_bid'])/2
+order_books = ..
+trade_data = ..
 
 # Create a MarketMaker instance
 market_maker = MarketMaker()
+
+# Update order books and trade data
+market_maker.update_data(order_books, trade_data)
+
+# Update fair price
+market_maker.calculate_fair_price('KalmanFilter')
+
+# Generate quotes
+quotes = market_maker.generate_quotes_symmetric()
+
 
 # Set parameters
 position = 0  # Assuming no existing position
 position_factor = 0.1
 
 # Generate quotes
-bid_price, ask_price = market_maker.generate_quotes(position, position_factor)
+quotes = market_maker.generate_quotes(position, position_factor)
 
-# Print the generated quotes
-print("Bid Price:", bid_price)
-print("Ask Price:", ask_price)
