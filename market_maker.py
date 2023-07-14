@@ -59,7 +59,6 @@ class MarketMaker:
             # Calculate price vol to decide spread if spread is not given
             vol = self.trade_data.price.rolling(50).std().values[-1]
             # vol = self.order_books.mid_price.rolling(50).std()
-            #  + position_factor * position
             # Adjust quotes based on position and spread
             return {
                 'asks': {
