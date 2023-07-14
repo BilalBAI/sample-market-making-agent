@@ -1,6 +1,6 @@
 # sample-market-making-agent
 
-Given order book and trade data, the sample market maker is able to update fair prices and generate quotes. Below are some highlights. Check the notebook for the details. This is a toy example and should not be used in production.
+Given order book and trade data, the sample market maker is able to update fair prices and generate quotes. The main algorithms are implemented in market_maker.py/MarketMaker. The demonstration and presentation are available on notebook.py. Below are some highlighted features. 
 
 ## Update fair price (Users can choose from 4 methods):
 1. MidPrice: Update fair value based on the market mid price
@@ -11,3 +11,4 @@ Given order book and trade data, the sample market maker is able to update fair 
 ## Generate quotes
 Using Avellaneda & Stoikov’s strategy to find the optimal bid/ask spreads and taking inventory risk into consideration.
 
+## This is a toy example and should not be used in production.
