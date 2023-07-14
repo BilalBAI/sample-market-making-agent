@@ -93,7 +93,7 @@ class MarketMaker:
 
         '''
         reservation_price = fair_price - \
-            (position - self.target_position) * gamma * (T - t)/T * (vol ** 2)
+            (position - self.target_position)/position * gamma * (T - t)/T * (vol ** 2)
         spread = gamma * (vol ** 2) * (T - t) + (2/gamma) * \
             math.log(1 + (gamma/order_book_density))
         bid = reservation_price - spread/2
