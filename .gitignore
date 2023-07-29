@@ -1,5 +1,6 @@
 # 
 *.csv
+*.DS_Store
 binance_iotabtc_orderbooks/
 
 # Byte-compiled / optimized / DLL files
